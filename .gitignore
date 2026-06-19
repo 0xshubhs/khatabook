@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+.next/
+out/
+.expo/
+*.tsbuildinfo
+
+# prisma generated client
+packages/database/generated/
+
+# backend uploads (local disk attachments)
+apps/backend/uploads/
+
+# turbo
+.turbo/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# misc
+.DS_Store
+coverage/

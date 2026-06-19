@@ -1,0 +1,7 @@
+{
+  "extends": "@khatabook/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="224" fill="#2563eb"/>
+  <!-- ledger page -->
+  <rect x="300" y="240" width="424" height="544" rx="48" fill="#ffffff"/>
+  <!-- spine -->
+  <rect x="300" y="240" width="76" height="544" rx="38" fill="#1d4ed8"/>
+  <!-- ledger lines -->
+  <rect x="420" y="356" width="248" height="34" rx="17" fill="#dbe4fb"/>
+  <rect x="420" y="452" width="248" height="34" rx="17" fill="#dbe4fb"/>
+  <rect x="420" y="548" width="176" height="34" rx="17" fill="#dbe4fb"/>
+  <!-- credit (green) / debit (red) markers -->
+  <circle cx="556" cy="660" r="28" fill="#dc2626"/>
+  <circle cx="640" cy="660" r="28" fill="#16a34a"/>
+</svg>

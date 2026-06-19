@@ -1,0 +1,10 @@
+{
+  "extends": "@khatabook/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Express route params/query are guaranteed present for matched routes;
+    // the index-signature strictness from the base config is noise here.
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src"]
+}

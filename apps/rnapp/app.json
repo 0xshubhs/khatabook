@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Khatabook Clone",
+    "slug": "khatabook-clone",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "android": {
+      "package": "com.khatabook.clone",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563eb"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.khatabook.clone",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSContactsUsageDescription": "Import a customer's name and phone from your contacts.",
+        "NSFaceIDUsageDescription": "Unlock Khatabook with Face ID."
+      }
+    },
+    "plugins": [
+      ["expo-contacts", { "contactsPermission": "Import a customer from your contacts." }],
+      ["expo-local-authentication", { "faceIDPermission": "Unlock Khatabook with Face ID." }]
+    ]
+  }
+}

@@ -1,0 +1,157 @@
+// Khatabook Clone — Prisma schema (SPEC §4).
+// Offline-sync ready from day one:
+//   - ids are client-generatable UUIDs (server accepts the client's id on upsert)
+//   - every syncable model carries updatedAt + deletedAt (soft delete / tombstone)
+//   - syncStatus is a CLIENT-only concept (Dexie, SPEC §6) — not a column here
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String     @id @default(uuid())
+  phone      String     @unique
+  name       String?
+  email      String?
+  pinHash    String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  businesses Business[]
+}
+
+model Business {
+  id        String          @id @default(uuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  name      String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+  parties   Party[]
+  cashbook  CashbookEntry[]
+  invoices  Invoice[]
+  inventory InventoryItem[]
+  reminders Reminder[]
+
+  @@index([userId])
+}
+
+model Party {
+  id           String        @id @default(uuid())
+  businessId   String
+  business     Business      @relation(fields: [businessId], references: [id])
+  name         String
+  phone        String?
+  type         PartyType     @default(CUSTOMER)
+  gstin        String?
+  address      Json? // { flat, area, pincode, city, state, shippingSameAsBilling }
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  transactions Transaction[]
+  reminders    Reminder[]
+
+  @@index([businessId])
+}
+
+enum PartyType {
+  CUSTOMER
+  SUPPLIER
+}
+
+model Transaction {
+  id            String          @id @default(uuid())
+  partyId       String
+  party         Party           @relation(fields: [partyId], references: [id])
+  type          TransactionType // CREDIT = "you gave", DEBIT = "you got"
+  amountPaise   Int
+  note          String?
+  attachmentUrl String?
+  attachments   Json? // string[] of attachment URLs
+  txnDate       DateTime        @default(now())
+  dueDate       DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  @@index([partyId])
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+model CashbookEntry {
+  id            String        @id @default(uuid())
+  businessId    String
+  business      Business      @relation(fields: [businessId], references: [id])
+  direction     CashDirection // IN / OUT
+  amountPaise   Int
+  category      String?
+  paymentMode   String? // "CASH" | "ONLINE"
+  note          String?
+  attachmentUrl String?
+  attachments   Json? // string[] of attachment URLs
+  entryDate     DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  @@index([businessId])
+}
+
+enum CashDirection {
+  IN
+  OUT
+}
+
+model Invoice {
+  id         String    @id @default(uuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id])
+  partyId    String?
+  number     String
+  items      Json // [{ name, qty, ratePaise }]
+  totalPaise Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  @@index([businessId])
+}
+
+model InventoryItem {
+  id                String    @id @default(uuid())
+  businessId        String
+  business          Business  @relation(fields: [businessId], references: [id])
+  name              String
+  stockQty          Int       @default(0)
+  lowStockThreshold Int       @default(0)
+  pricePaise        Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  @@index([businessId])
+}
+
+model Reminder {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  partyId    String
+  party      Party    @relation(fields: [partyId], references: [id])
+  channel    String // "SMS" | "WHATSAPP" | "STUB"
+  message    String
+  sentAt     DateTime @default(now())
+
+  @@index([businessId])
+  @@index([partyId])
+}

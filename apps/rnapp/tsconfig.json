@@ -1,0 +1,5 @@
+{
+  "extends": "@khatabook/tsconfig/react-native.json",
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}

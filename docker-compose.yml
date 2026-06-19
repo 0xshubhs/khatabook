@@ -1,0 +1,22 @@
+# Phase 0: Postgres only. Backend + webapp services are added in later phases
+# (see SPEC.md §10). For now run the apps with `pnpm dev` and Postgres here.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: khatabook
+      POSTGRES_PASSWORD: khatabook
+      POSTGRES_DB: khatabook
+    ports:
+      - "5432:5432"
+    volumes:
+      - khatabook_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U khatabook"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  khatabook_pgdata:
