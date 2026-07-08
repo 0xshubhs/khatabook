@@ -46,12 +46,14 @@ preflight() {
 }
 
 install_deps() {
-    if [ ! -d "$WEB_DIR/node_modules" ]; then
+    # bun HOISTS deps to the ROOT node_modules, so apps/webapp usually has no
+    # node_modules of its own — check for `next` in root OR webapp, not the dir.
+    if [ ! -d "$ROOT_DIR/node_modules/next" ] && [ ! -d "$WEB_DIR/node_modules/next" ]; then
         step "Install dependencies"
         info "bun install (workspace)…"
         cd "$ROOT_DIR" && bun install 2>&1
-        [ -d "$WEB_DIR/node_modules" ] \
-            || die "webapp deps missing after install — root package.json \"workspaces\" must include \"apps/webapp\" (and \"packages/*\")."
+        { [ -d "$ROOT_DIR/node_modules/next" ] || [ -d "$WEB_DIR/node_modules/next" ]; } \
+            || die "'next' not installed — root package.json \"workspaces\" must include \"apps/webapp\". Fix it, run 'bun install', then retry."
     fi
 }
 
