@@ -126,30 +126,122 @@ export function streamSummaryPdf(
 ): void {
   const doc = new PDFDocument({ margin: 40, size: "A4" });
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", 'attachment; filename="summary.pdf"');
+  res.setHeader("Content-Disposition", 'attachment; filename="report.pdf"');
   doc.pipe(res);
 
   const s = opts.summary;
-  doc.fontSize(20).text("Business Summary");
+  const date = (d: Date) => new Date(d).toLocaleDateString("en-IN");
+  const num = (paise: number) => formatPaise(paise, { withSymbol: false });
+  const clip = (str: string, n: number) => (str.length > n ? str.slice(0, n - 1) + "…" : str);
+
+  doc.fontSize(20).text("Business Report");
   doc.moveDown(0.3).fontSize(12).fillColor("#555").text(opts.businessName);
   if (s.from || s.to) {
-    const f = s.from ? new Date(s.from).toLocaleDateString("en-IN") : "start";
-    const t = s.to ? new Date(s.to).toLocaleDateString("en-IN") : "today";
-    doc.text(`Period: ${f} – ${t}`);
+    doc.text(`Period: ${s.from ? date(s.from) : "start"} - ${s.to ? date(s.to) : "today"}`);
   }
   doc.moveDown(0.8).fillColor("#000").fontSize(12);
   const line = (label: string, paise: number) => doc.text(`${label}: ${rs(paise)}`);
   line("You will get (receivable)", s.receivablePaise);
   line("You will give (payable)", s.payablePaise);
+  line("Cash In", s.cashInPaise);
+  line("Cash Out", s.cashOutPaise);
   line("Cashbook net", s.cashbookNetPaise);
   line("Sales", s.salesPaise);
   line("Purchases", s.purchasesPaise);
 
-  doc.moveDown(1).fontSize(14).text("Parties");
-  doc.moveDown(0.3).fontSize(10);
-  for (const p of s.parties) {
-    const d = describeBalance(p.balancePaise);
-    doc.text(`${p.name} (${p.type}) — ${rs(d.amountPaise)} ${d.status}`);
-  }
+  type Col = { label: string; x: number; width: number; align?: "left" | "right" };
+  const drawTable = (title: string, cols: Col[], rows: string[][], empty: string) => {
+    let y = doc.y + 18;
+    if (y > 720) {
+      doc.addPage();
+      y = 40;
+    }
+    doc.fontSize(13).fillColor("#000").text(title, 40, y);
+    y += 20;
+    const head = () => {
+      doc.fontSize(9).fillColor("#888");
+      for (const c of cols)
+        doc.text(c.label, c.x, y, { width: c.width, align: c.align ?? "left", lineBreak: false });
+      doc.moveTo(40, y + 13).lineTo(555, y + 13).stroke("#dddddd");
+      y += 20;
+    };
+    head();
+    doc.fillColor("#000").fontSize(9);
+    if (rows.length === 0) {
+      doc.text(empty, 40, y);
+      doc.y = y + 18;
+      return;
+    }
+    for (const r of rows) {
+      if (y > 790) {
+        doc.addPage();
+        y = 40;
+        head();
+        doc.fillColor("#000").fontSize(9);
+      }
+      r.forEach((cell, i) =>
+        doc.text(cell, cols[i].x, y, { width: cols[i].width, align: cols[i].align ?? "left", lineBreak: false }),
+      );
+      y += 15;
+    }
+    doc.y = y;
+  };
+
+  drawTable(
+    "Customers & Suppliers",
+    [
+      { label: "Name", x: 40, width: 150 },
+      { label: "Type", x: 195, width: 70 },
+      { label: "You Gave", x: 270, width: 80, align: "right" },
+      { label: "You Got", x: 355, width: 80, align: "right" },
+      { label: "Balance", x: 440, width: 115, align: "right" },
+    ],
+    s.parties.map((p) => {
+      const d = describeBalance(p.balancePaise);
+      return [clip(p.name, 28), p.type, num(p.gavePaise), num(p.gotPaise), `${num(d.amountPaise)} ${d.status}`];
+    }),
+    "No parties.",
+  );
+
+  drawTable(
+    "Transactions (ledger)",
+    [
+      { label: "Date", x: 40, width: 65 },
+      { label: "Party", x: 110, width: 135 },
+      { label: "You Gave", x: 250, width: 80, align: "right" },
+      { label: "You Got", x: 335, width: 80, align: "right" },
+      { label: "Note", x: 420, width: 135 },
+    ],
+    s.transactions.map((t) => [
+      date(t.date),
+      clip(t.partyName, 26),
+      t.type === "CREDIT" ? num(t.amountPaise) : "",
+      t.type === "DEBIT" ? num(t.amountPaise) : "",
+      clip(t.note ?? "", 28),
+    ]),
+    "No transactions in this period.",
+  );
+
+  drawTable(
+    "Cashbook (cash in / out)",
+    [
+      { label: "Date", x: 40, width: 65 },
+      { label: "Type", x: 110, width: 65 },
+      { label: "Cash In", x: 180, width: 80, align: "right" },
+      { label: "Cash Out", x: 265, width: 80, align: "right" },
+      { label: "Mode", x: 350, width: 55 },
+      { label: "Note", x: 410, width: 145 },
+    ],
+    s.cashbook.map((e) => [
+      date(e.date),
+      e.direction === "IN" ? "Cash In" : "Cash Out",
+      e.direction === "IN" ? num(e.amountPaise) : "",
+      e.direction === "OUT" ? num(e.amountPaise) : "",
+      e.paymentMode ?? "",
+      clip(e.note ?? "", 30),
+    ]),
+    "No cash entries in this period.",
+  );
+
   doc.end();
 }

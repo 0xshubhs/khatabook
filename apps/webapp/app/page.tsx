@@ -12,6 +12,7 @@ import { AddPartySheet } from "@/components/add-party-sheet";
 import { useAuth } from "@/components/providers";
 import { Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
+import { defaultRange } from "@/lib/dates";
 import { useBusinesses, useCashbook, useParties, useSummary } from "@/lib/queries";
 import type { CashEntry, PartyListItem } from "@/lib/types";
 
@@ -49,8 +50,8 @@ export default function HomePage() {
 
   const [tab, setTab] = useState<"customers" | "cashbook">("customers");
   const [search, setSearch] = useState("");
-  const [cashFrom, setCashFrom] = useState("");
-  const [cashTo, setCashTo] = useState("");
+  const [cashFrom, setCashFrom] = useState(() => defaultRange().from);
+  const [cashTo, setCashTo] = useState(() => defaultRange().to);
   const [addParty, setAddParty] = useState(false);
   const [cashDir, setCashDir] = useState<"IN" | "OUT" | null>(null);
 

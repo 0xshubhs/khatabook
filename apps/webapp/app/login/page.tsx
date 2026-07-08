@@ -25,7 +25,7 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await api.requestOtp(phone.trim());
+      await api.requestOtp("+91" + phone);
       setStep("otp");
     } catch {
       setError(t("invalidOtp"));
@@ -38,7 +38,7 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const result = await api.verifyOtp(phone.trim(), otp.trim());
+      const result = await api.verifyOtp("+91" + phone, otp.trim());
       login(result);
       router.replace("/");
     } catch (e) {
@@ -56,18 +56,25 @@ export default function LoginPage() {
       {step === "phone" ? (
         <>
           <Field label={t("phoneLabel")}>
-            <input
-              className={inputClass}
-              inputMode="numeric"
-              autoFocus
-              placeholder={t("phonePlaceholder")}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+            <div className="flex items-center gap-2">
+              <span className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                +91
+              </span>
+              <input
+                className={inputClass}
+                type="tel"
+                inputMode="numeric"
+                autoFocus
+                maxLength={10}
+                placeholder={t("phonePlaceholder")}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              />
+            </div>
           </Field>
           <Button
             className="mt-2"
-            disabled={busy || phone.trim().length < 10}
+            disabled={busy || phone.length !== 10}
             onClick={sendOtp}
           >
             {busy ? t("sending") : t("sendOtp")}

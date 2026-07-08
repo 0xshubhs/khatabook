@@ -10,6 +10,7 @@ import { useAuth } from "@/components/providers";
 import { Button, Spinner } from "@/components/ui";
 import { api, rangeQuery } from "@/lib/api";
 import { downloadFile } from "@/lib/download";
+import { defaultRange } from "@/lib/dates";
 import { useBusinesses } from "@/lib/queries";
 
 export default function ReportsPage() {
@@ -20,8 +21,8 @@ export default function ReportsPage() {
 
   const { data: businesses } = useBusinesses();
   const businessId = businesses?.[0]?.id;
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(() => defaultRange().from);
+  const [to, setTo] = useState(() => defaultRange().to);
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ["summary", businessId, from, to],

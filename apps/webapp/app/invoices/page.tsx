@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers";
 import { BottomSheet, Button, Field, Spinner, inputClass } from "@/components/ui";
 import { downloadFile } from "@/lib/download";
+import { defaultRange } from "@/lib/dates";
 import { useBusinesses, useCreateInvoice, useInvoices, useParties } from "@/lib/queries";
 
 interface DraftLine {
@@ -31,8 +32,8 @@ export default function InvoicesPage() {
   const [creating, setCreating] = useState(false);
   const [partyId, setPartyId] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(() => defaultRange().from);
+  const [to, setTo] = useState(() => defaultRange().to);
 
   useEffect(() => {
     if (isReady && !user) router.replace("/login");
