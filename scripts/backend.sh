@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
-# khatabook-backend — Express API (bun, TypeScript) on port 3000.
-# Public URL: nginx routes propexty.com/ -> 127.0.0.1:3000
+# khatabook-backend — Express API (bun, TypeScript) on port 4000.
+# Public URL: nginx routes propexty.com/api/ -> 127.0.0.1:4000
+# (webapp owns propexty.com/ on :3000 — see scripts/web.sh)
 #
 # Commands:  start | stop | restart | status | logs | build | migrate | nuke
 #
@@ -13,7 +14,7 @@
 set -eo pipefail
 
 REPO_NAME="khatabook-backend"
-PORT=3000
+PORT=4000
 PG_CONTAINER="propexty-postgres"          # the shared Postgres container name
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -149,7 +150,7 @@ show_status() {
         err "Backend: STOPPED"
     fi
     docker ps --filter "name=$PG_CONTAINER" --format "  {{.Names}}  {{.Status}}" 2>/dev/null || true
-    echo -e "  public: ${BOLD}https://propexty.com${NC}  (nginx → :$PORT)"
+    echo -e "  public: ${BOLD}https://propexty.com/api${NC}  (nginx → :$PORT)"
 }
 
 tail_logs() {
@@ -170,7 +171,7 @@ nuke_all() {
 
 do_start() {
     preflight; validate_env; ensure_infra; install_deps; run_migrations; start_backend
-    log "Up → http://localhost:$PORT   (public: https://propexty.com)"
+    log "Up → http://localhost:$PORT   (public: https://propexty.com/api)"
 }
 
 main() {
