@@ -1,6 +1,7 @@
 // Environment config. `dotenv/config` is imported first in index.ts so these
 // are populated before anything (incl. the Prisma client) reads them.
-const PORT = Number(process.env.PORT ?? 4000);
+// Backend listens on 3000 — this is the port nginx/propexty.com proxies to.
+const PORT = Number(process.env.PORT ?? 3000);
 
 export const env = {
   port: PORT,
