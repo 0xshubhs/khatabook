@@ -3,6 +3,7 @@
     "name": "Khatabook Clone",
     "slug": "khatabook-clone",
     "version": "0.0.0",
+    "scheme": "khatabook",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",

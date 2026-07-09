@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
+  Linking,
   Platform,
   Share,
   StyleSheet,
@@ -387,6 +388,13 @@ export default function App() {
           onNavigationStateChange={(nav) => setCanGoBack(nav.canGoBack)}
           onError={() => setError(true)}
           onHttpError={() => setError(true)}
+          // Keep web pages in the WebView; hand off tel:/sms:/mailto:/whatsapp:/
+          // upi:/geo:/intent: to the OS so calling, reminders and UPI payments work.
+          onShouldStartLoadWithRequest={(req) => {
+            if (/^(https?:|about:blank)/.test(req.url)) return true;
+            Linking.openURL(req.url).catch(() => {});
+            return false;
+          }}
           pullToRefreshEnabled
           startInLoadingState
           // --- Durable web storage + robustness (the session/localStorage lives here) ---
