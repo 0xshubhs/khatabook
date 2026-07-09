@@ -45,6 +45,66 @@ async function writeLockPref(enabled: boolean): Promise<void> {
   }
 }
 
+// Remembered Android "downloads" folder (a Storage Access Framework tree URI the
+// user grants once). Persisted so reports save silently on every later download.
+const SAVE_DIR_FILE = PREF_DIR + "savedir.json";
+
+async function readSaveDir(): Promise<string | null> {
+  try {
+    const raw = await FileSystem.readAsStringAsync(SAVE_DIR_FILE);
+    const parsed = JSON.parse(raw) as { uri?: unknown };
+    return typeof parsed?.uri === "string" ? parsed.uri : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeSaveDir(uri: string): Promise<void> {
+  try {
+    await FileSystem.writeAsStringAsync(SAVE_DIR_FILE, JSON.stringify({ uri }));
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Android only: actually SAVE the bytes into a folder the user picks once (e.g.
+ * Downloads) via the Storage Access Framework, so reports land as real files
+ * instead of only opening a share sheet. Returns false if the user declined the
+ * folder prompt (the caller then falls back to sharing).
+ */
+async function saveToFolder(filename: string, mimeType: string, base64: string): Promise<boolean> {
+  const SAF = FileSystem.StorageAccessFramework;
+  try {
+    let dir = await readSaveDir();
+    // The remembered grant can be revoked by Android — re-validate, re-ask if gone.
+    if (dir) {
+      try {
+        await SAF.readDirectoryAsync(dir);
+      } catch {
+        dir = null;
+      }
+    }
+    if (!dir) {
+      const perm = await SAF.requestDirectoryPermissionsAsync();
+      if (!perm.granted) return false;
+      dir = perm.directoryUri;
+      await writeSaveDir(dir);
+    }
+    // Pass the name without its extension — SAF derives it from the mimeType, so
+    // "summary.pdf" + application/pdf would otherwise become "summary.pdf.pdf".
+    const dot = filename.lastIndexOf(".");
+    const baseName = dot > 0 ? filename.slice(0, dot) : filename;
+    const fileUri = await SAF.createFileAsync(dir, baseName, mimeType);
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return true;
+  } catch {
+    return false; // any SAF failure → let the caller fall back to share
+  }
+}
+
 type BridgeRequest = {
   type: string;
   requestId: string;
@@ -172,14 +232,24 @@ export default function App() {
           case "saveFile": {
             const { filename, mimeType, base64 } = payload ?? {};
             if (!filename || !base64) return respond(requestId, null, "missing file data");
+            const type = mimeType ?? "application/octet-stream";
+
+            // Android: save straight into the user's chosen folder (a real
+            // download). Only fall back to the share sheet if they decline.
+            if (Platform.OS === "android" && (await saveToFolder(filename, type, base64))) {
+              return respond(requestId, true);
+            }
+
+            // iOS (or Android fallback): write to cache + open the share sheet,
+            // which includes "Save to Files".
             const uri = (FileSystem.cacheDirectory ?? "") + filename;
             await FileSystem.writeAsStringAsync(uri, base64, {
               encoding: FileSystem.EncodingType.Base64,
             });
             if (await Sharing.isAvailableAsync()) {
               await Sharing.shareAsync(uri, {
-                mimeType,
-                UTI: mimeType === "application/pdf" ? "com.adobe.pdf" : undefined,
+                mimeType: type,
+                UTI: type === "application/pdf" ? "com.adobe.pdf" : undefined,
               });
             }
             respond(requestId, true);
