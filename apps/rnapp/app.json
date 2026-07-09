@@ -18,12 +18,21 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSContactsUsageDescription": "Import a customer's name and phone from your contacts.",
-        "NSFaceIDUsageDescription": "Unlock Khatabook with Face ID."
+        "NSFaceIDUsageDescription": "Unlock Khatabook with Face ID.",
+        "NSCameraUsageDescription": "Take a photo of a bill to attach it to an entry.",
+        "NSPhotoLibraryUsageDescription": "Attach a bill photo from your gallery."
       }
     },
     "plugins": [
       ["expo-contacts", { "contactsPermission": "Import a customer from your contacts." }],
-      ["expo-local-authentication", { "faceIDPermission": "Unlock Khatabook with Face ID." }]
+      ["expo-local-authentication", { "faceIDPermission": "Unlock Khatabook with Face ID." }],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach a bill photo from your gallery.",
+          "cameraPermission": "Take a photo of a bill to attach it to an entry."
+        }
+      ]
     ]
   }
 }

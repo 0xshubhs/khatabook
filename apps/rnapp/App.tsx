@@ -1,6 +1,7 @@
 import * as Contacts from "expo-contacts";
 // SDK 54 moved the classic file API (writeAsStringAsync/cacheDirectory/EncodingType) to /legacy.
 import * as FileSystem from "expo-file-system/legacy";
+import * as ImagePicker from "expo-image-picker";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Sharing from "expo-sharing";
 import { StatusBar } from "expo-status-bar";
@@ -114,8 +115,39 @@ type BridgeRequest = {
     mimeType?: string;
     base64?: string;
     enabled?: boolean;
+    source?: "camera" | "library";
   };
 };
+
+// Open the native camera or gallery and return the picked image as base64 so the
+// webapp can upload it. Returns null on cancel or denied permission.
+async function pickImageNative(
+  source: "camera" | "library",
+): Promise<{ base64: string; mimeType: string; filename: string } | null> {
+  const perm =
+    source === "camera"
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) return null;
+
+  const options: ImagePicker.ImagePickerOptions = {
+    mediaTypes: ["images"],
+    base64: true,
+    quality: 0.6, // keep uploads small — bills are readable well below full-res
+  };
+  const result =
+    source === "camera"
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options);
+
+  const asset = result.canceled ? null : result.assets?.[0];
+  if (!asset?.base64) return null;
+  return {
+    base64: asset.base64,
+    mimeType: asset.mimeType ?? "image/jpeg",
+    filename: asset.fileName ?? "bill.jpg",
+  };
+}
 
 // loading -> deciding what to show; ask -> first-run opt-in; locked -> awaiting
 // biometric; open -> WebView is live.
@@ -217,6 +249,11 @@ export default function App() {
           case "biometricUnlock": {
             const r = await LocalAuthentication.authenticateAsync();
             respond(requestId, r.success);
+            break;
+          }
+          case "pickImage": {
+            const source = payload?.source === "library" ? "library" : "camera";
+            respond(requestId, await pickImageNative(source));
             break;
           }
           // App-lock preference toggled from the webapp Settings page.
@@ -352,6 +389,17 @@ export default function App() {
           onHttpError={() => setError(true)}
           pullToRefreshEnabled
           startInLoadingState
+          // --- Durable web storage + robustness (the session/localStorage lives here) ---
+          javaScriptEnabled
+          domStorageEnabled // persist localStorage (kb_access/kb_refresh) across restarts
+          cacheEnabled
+          thirdPartyCookiesEnabled // Android: keep cookies if the webapp ever uses them
+          sharedCookiesEnabled // iOS: same
+          allowFileAccess
+          allowsInlineMediaPlayback
+          // target=_blank / window.open would silently no-op with multiple windows on;
+          // keep it single-window so external links load in place instead of vanishing.
+          setSupportMultipleWindows={false}
           renderLoading={() => (
             <View style={styles.center}>
               <ActivityIndicator size="large" />

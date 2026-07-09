@@ -1,12 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { openAttachment } from "@/lib/download";
+import { nativeBridge } from "@/lib/native-bridge";
 
 const ACCEPT = "image/png,image/jpeg,application/pdf";
 const okType = (t: string) => /^image\/(png|jpe?g)$/.test(t) || t === "application/pdf";
 const isPdf = (url: string) => /\.pdf$/i.test(url.split("?")[0] ?? url);
+
+/** Turn a base64 payload from the native camera bridge into a File for upload. */
+function base64ToFile(base64: string, mimeType: string, filename: string): File {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new File([bytes], filename, { type: mimeType });
+}
 
 /** Small PDF tile (PDFs can't render as <img>). */
 function PdfTile({ size, onClick }: { size: string; onClick?: () => void }) {
@@ -35,6 +44,27 @@ export function MultiImageUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  // Only the RN shell exposes a native camera; read after mount (hydration-safe).
+  const [nativeShell, setNativeShell] = useState(false);
+  useEffect(() => setNativeShell(nativeBridge.isAvailable()), []);
+
+  async function handleCamera() {
+    setError(false);
+    setBusy(true);
+    try {
+      const img = await nativeBridge.pickImage("camera").catch(() => null);
+      if (img?.base64) {
+        const { attachmentUrl } = await api.uploadImage(
+          base64ToFile(img.base64, img.mimeType, img.filename),
+        );
+        onChange([...value, attachmentUrl]);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handle(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -93,17 +123,31 @@ export function MultiImageUpload({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-gray-300 p-4 text-center"
-      >
-        <span className="text-xl">⬆️</span>
-        <span className="text-sm font-semibold text-gray-700">
-          {busy ? "Uploading…" : value.length ? "Add more" : "Click to upload"}
-        </span>
-        <span className="text-xs text-gray-400">PNG, JPG or PDF · multiple allowed</span>
-      </button>
+      <div className="flex gap-2">
+        {nativeShell && (
+          <button
+            type="button"
+            onClick={handleCamera}
+            disabled={busy}
+            className="flex flex-1 flex-col items-center gap-1 rounded-xl border border-dashed border-gray-300 p-4 text-center disabled:opacity-60"
+          >
+            <span className="text-xl">📷</span>
+            <span className="text-sm font-semibold text-gray-700">Camera</span>
+            <span className="text-xs text-gray-400">Snap a bill</span>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className={`flex flex-col items-center gap-1 rounded-xl border border-dashed border-gray-300 p-4 text-center ${nativeShell ? "flex-1" : "w-full"}`}
+        >
+          <span className="text-xl">⬆️</span>
+          <span className="text-sm font-semibold text-gray-700">
+            {busy ? "Uploading…" : value.length ? "Add more" : nativeShell ? "Gallery / files" : "Click to upload"}
+          </span>
+          <span className="text-xs text-gray-400">PNG, JPG or PDF · multiple allowed</span>
+        </button>
+      </div>
       {error && (
         <p className="mt-1 text-xs text-due">Some files weren’t PNG/JPG/PDF or failed to upload.</p>
       )}

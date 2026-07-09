@@ -74,6 +74,20 @@ export const nativeBridge = {
     return call<boolean>("biometricUnlock");
   },
 
+  /**
+   * Native camera / gallery image picker. Returns the image as base64 for upload,
+   * or null on cancel / denied / when not in the shell. Older shells without this
+   * bridge reject with "unknown bridge type" — callers should fall back to <input>.
+   */
+  async pickImage(
+    source: "camera" | "library",
+  ): Promise<{ base64: string; mimeType: string; filename: string } | null> {
+    if (!isNativeShell()) return null;
+    return call<{ base64: string; mimeType: string; filename: string } | null>("pickImage", {
+      source,
+    });
+  },
+
   /** Save/share a file natively (WebView can't download blobs). */
   saveFile(payload: { filename: string; mimeType: string; base64: string }): Promise<boolean> {
     return call<boolean>("saveFile", payload);
