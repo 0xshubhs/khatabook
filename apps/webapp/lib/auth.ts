@@ -25,6 +25,12 @@ export const session = {
     localStorage.setItem(REFRESH_KEY, refresh);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   },
+  /** Rotate just the tokens (used by silent refresh — the user object is unchanged). */
+  setTokens(access: string, refresh: string): void {
+    if (!isClient) return;
+    localStorage.setItem(ACCESS_KEY, access);
+    localStorage.setItem(REFRESH_KEY, refresh);
+  },
   setUser(user: User): void {
     if (isClient) localStorage.setItem(USER_KEY, JSON.stringify(user));
   },

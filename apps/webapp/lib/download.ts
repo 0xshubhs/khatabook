@@ -1,5 +1,4 @@
-import { API_BASE } from "./api";
-import { session } from "./auth";
+import { authedFetch } from "./api";
 import { nativeBridge } from "./native-bridge";
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {
@@ -24,10 +23,7 @@ export async function downloadFile(
   filename: string,
   mimeType: string,
 ): Promise<void> {
-  const token = session.getAccess();
-  const res = await fetch(API_BASE + path, {
-    headers: token ? { authorization: `Bearer ${token}` } : {},
-  });
+  const res = await authedFetch(path);
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
 
   if (nativeBridge.isAvailable()) {

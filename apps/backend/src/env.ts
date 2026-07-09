@@ -8,7 +8,9 @@ export const env = {
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? "dev-access-secret-change-me",
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET ?? "dev-refresh-secret-change-me",
   accessTokenTtl: "15m",
-  refreshTokenTtl: "30d",
+  // Long-lived + rotated on every /auth/refresh, so an active user effectively
+  // never has to log in again; only a ~3-month-idle account expires.
+  refreshTokenTtl: "90d",
   // Comma-separated list so the webapp works from both localhost (Mac browser)
   // and the Mac's LAN IP (phone WebView over Wi-Fi).
   webappOrigin: (process.env.WEBAPP_ORIGIN ?? "http://localhost:3000")

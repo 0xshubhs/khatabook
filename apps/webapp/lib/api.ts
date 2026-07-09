@@ -33,14 +33,73 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const token = session.getAccess();
-  const res = await fetch(BASE + path, {
-    method,
+// --- Silent token refresh -------------------------------------------------
+// The access token is short-lived (15m); the refresh token is long-lived (rotates
+// on every use). We never let the user see a login screen just because the access
+// token expired — on a 401 we transparently refresh and retry once. Only if the
+// refresh itself fails (refresh token expired/invalid) do we drop the session.
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function refreshTokens(): Promise<boolean> {
+  const refreshToken = session.getRefresh();
+  if (!refreshToken) return false;
+  // De-dupe: a burst of concurrent 401s must trigger only ONE refresh call.
+  refreshInFlight ??= (async () => {
+    try {
+      const res = await fetch(BASE + "/auth/refresh", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const data = (await res.json()) as { accessToken: string; refreshToken: string };
+      session.setTokens(data.accessToken, data.refreshToken);
+      return true;
+    } catch {
+      return false; // network error — keep the session, the caller will surface the failure
+    }
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+/** Signal the app that the session is unrecoverable so it can redirect to /login. */
+function notifySessionExpired(): void {
+  session.clear();
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("kb:session-expired"));
+}
+
+/**
+ * fetch that attaches the access token and, on a 401, refreshes once and retries.
+ * All authenticated requests (JSON API, uploads, downloads) go through this so the
+ * session survives silently for as long as the refresh token stays valid.
+ */
+export async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const withToken = (token: string | null): RequestInit => ({
+    ...init,
     headers: {
-      ...(body ? { "content-type": "application/json" } : {}),
+      ...(init.headers as Record<string, string> | undefined),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
+  });
+
+  let res = await fetch(BASE + path, withToken(session.getAccess()));
+  if (res.status === 401 && session.getRefresh()) {
+    if (await refreshTokens()) {
+      res = await fetch(BASE + path, withToken(session.getAccess()));
+    } else {
+      notifySessionExpired();
+    }
+  }
+  return res;
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await authedFetch(path, {
+    method,
+    headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -145,14 +204,10 @@ export const api = {
   }) => request<Invoice>("POST", "/invoices", data),
 
   async uploadImage(file: File): Promise<{ attachmentUrl: string }> {
-    const token = session.getAccess();
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch(`${BASE}/uploads`, {
-      method: "POST",
-      headers: token ? { authorization: `Bearer ${token}` } : {},
-      body: fd, // browser sets multipart content-type + boundary
-    });
+    // No content-type header — the browser sets multipart boundary itself.
+    const res = await authedFetch("/uploads", { method: "POST", body: fd });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new ApiError(res.status, (data as { error?: string })?.error ?? "Upload failed");
     return data as { attachmentUrl: string };

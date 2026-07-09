@@ -82,6 +82,14 @@ export function Providers({ children }: { children: ReactNode }) {
     router.replace("/login");
   }, [queryClient, router]);
 
+  // The API layer fires this when a refresh fails (refresh token expired/invalid)
+  // — the only case where we actually send the user back to the login screen.
+  useEffect(() => {
+    const onExpired = () => logout();
+    window.addEventListener("kb:session-expired", onExpired);
+    return () => window.removeEventListener("kb:session-expired", onExpired);
+  }, [logout]);
+
   const setLocale = useCallback((next: Locale) => {
     localStorage.setItem(LOCALE_KEY, next);
     setLocaleState(next);
